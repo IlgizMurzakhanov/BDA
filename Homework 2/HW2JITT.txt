@@ -1,0 +1,3 @@
+1. True since it assigns equal density to any vector of length k satisfying the sum(theta_j)_1^k = 1 condition. Therefore, since it is properly normalized, the posterior will be too.
+
+2. We sampled alpha first. If we had reversed the order, we could only have drawn beta from p(beta|y). Since we want to marginalize over beta, we would then have to use our samples as importance samples and reweight them according to p(beta|alpha, y) (after we drew an alpha). Thus the algorithm would be less efficient and probably require more samples.

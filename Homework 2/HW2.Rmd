@@ -1,0 +1,229 @@
+---
+title: "HW2"
+output: pdf_document
+---
+1 (a).
+
+My stan model:
+
+```{r engine='cat',engine.opts=list(file = "putting_model.stan", lang = "stan")}
+data {
+  int<lower=0> N;
+  int<lower=0> G;
+  int<lower=0> C;
+  vector[N] post;
+  vector[N] treatment;
+  vector[N] pre;
+  int grade[N];
+  vector[N] city;
+}
+parameters {
+  vector[G] a;
+  vector[G] b;
+  vector[G] c;
+  vector[G] d;
+  real mu_a;
+  real mu_b;
+  real mu_c;
+  real mu_d;
+  real<lower=0,upper=100> sigma_a;
+  real<lower=0,upper=100> sigma_b;
+  real<lower=0,upper=100> sigma_c;
+  real<lower=0,upper=100> sigma_d;
+  real<lower=0,upper=100> sigma_y[G];
+}
+transformed parameters {
+  vector[N] y_hat;
+  vector[N] sigma_y_hat;  
+
+  for (i in 1:N) {
+    y_hat[i] <- a[grade[i]] + b[grade[i]] * treatment[i] + c[grade[i]] * pre[i] + d[grade[i]] * city[i];
+    sigma_y_hat[i] <- sigma_y[grade[i]];
+  }
+}
+model {
+  a ~ normal(mu_a, sigma_a);
+  b ~ normal(mu_b, sigma_b);
+  c ~ normal(mu_c, sigma_c);
+  d ~ normal(mu_d, sigma_d);
+  post ~ normal(y_hat, sigma_y_hat);
+}
+```
+
+And code for running it:
+
+```{r warning=FALSE, message=FALSE, results='hide'}
+library ("rstan")
+setwd("~/Documents/BDA/Homework 2")
+
+electric_data <- read.table ("electric_data.txt", header=TRUE)
+city <- c(electric_data$City, electric_data$City)
+grade <- as.integer(c(electric_data$Grade, electric_data$Grade))
+pre <- c(electric_data$T_Pre, electric_data$C_Pre)
+post <- c(electric_data$T_Post, electric_data$C_Post)
+control <- array(0, length(electric_data$C_Pre))
+treat <- array(1, length(electric_data$T_Pre))
+treatment <- c(treat, control)
+N <- length(pre)
+G <- 4
+C <- 2
+
+fit <- stan("electric_model.stan")
+```
+Treatment effect by grade and average
+```{r}
+print(fit, pars = c("b", "mu_b"))
+```
+(b)
+If we look at point estimates of the treatment effect, we see differences by grade but not city
+```{r}
+tot <- (electric_data$T_Post - electric_data$T_Pre)
+baseline <- (electric_data$C_Post - electric_data$C_Pre)
+electric_data$Treatment_eff <- tot - baseline
+
+#grade
+grade1 <- subset(electric_data, electric_data$Grade == 1)
+grade2 <- subset(electric_data, electric_data$Grade == 2)
+grade3 <- subset(electric_data, electric_data$Grade == 3)
+grade4 <- subset(electric_data, electric_data$Grade == 4)
+boxplot(grade1$Treatment_eff, grade2$Treatment_eff, grade3$Treatment_eff, grade4$Treatment_eff, names = c(1, 2, 3, 4))
+
+#city
+fresno <- subset(electric_data, as.numeric(electric_data$City) == 1)
+youngstown <- subset(electric_data, as.numeric(electric_data$City) == 2)
+boxplot(fresno$Treatment_eff, youngstown$Treatment_eff, names = c("F", "Y"))
+```
+
+However this might be due to the lower variance as the grades get higher. The first graders have low variance on the pretest compared to the 4th graders because they have very low scores:
+
+```{r}
+var(grade1$T_Pre) + var(grade1$C_Pre)
+var(grade4$T_Pre) + var(grade4$C_Pre)
+```
+
+And the opposite is true at the upper end
+```{r}
+var(grade1$T_Post) + var(grade1$C_Post)
+var(grade4$T_Post) + var(grade4$C_Post)
+```
+This is beacuse grades are bounded in 0-100 so a linear model for grades is probably not the right model
+
+
+(c)
+The biggest concern is that they were selecting on how bad the class was at the beginning. This does not seem to be the case:
+```{r}
+R <- subset(electric_data, as.numeric(electric_data$Replacement) == 1)
+S <- subset(electric_data, as.numeric(electric_data$Replacement) == 2)
+boxplot(R$C_Pre, S$C_Pre, names = c("R", "S"))
+```
+In addition, we can regress everything and get no real coefficients
+```{r}
+replacement <- electric_data$Replacement
+city <- electric_data$City
+grade <- electric_data$Grade
+pre_test <- electric_data$T_Pre
+lm(replacement ~ city + grade + pre_test)
+```
+
+2.
+Fitting model
+```{r engine='cat',engine.opts=list(file = "putting_model.stan", lang = "stan")}
+data {
+  int J;
+  int n[J];
+  real x[J];
+  int y[J];
+  vector[2] mu;
+  cov_matrix[2] Sigma;
+}
+parameters {
+  vector[2] pars;
+}
+transformed parameters {
+  real alpha;
+  real beta;
+  real theta[J];
+  alpha <- pars[1];
+  beta <- pars[2];
+  for (j in 1:J)
+    theta[j] <- inv_logit(alpha + beta * x[j]);
+}
+model {
+  pars ~ multi_normal(mu, Sigma);
+  y ~ binomial(n, theta);
+}
+generated quantities {
+  real LD50;
+  LD50 <- -alpha/beta;
+}
+```
+
+
+```{r warning=FALSE, message=FALSE, results='hide'}
+setwd("~/Documents/BDA/Homework 2")
+bioassay <- read.table("bioassay_data.txt", header=TRUE)
+x <- bioassay$x
+y <- bioassay$y
+n <- bioassay$n
+J <- length(x)
+
+sd_a <- 4
+sd_b <- 10
+var_a <- sd_a * sd_a
+var_b <- sd_b * sd_b
+corr <- .5
+cov <- corr * sd_a * sd_b
+Sigma <- matrix(c(var_a,cov,
+                  cov,var_b),nrow=2)
+mu <- c(0, 10)
+
+fit_prior <- stan("bioassay_model_prior.stan")
+```
+```{r}
+print(fit_prior, pars = c("alpha", "beta", "LD50"))
+
+## Post-processing
+sims_prior <- extract(fit_prior)
+plot(sims_prior$alpha, sims_prior$beta)
+hist(sims_prior$LD50)
+```
+
+(b)
+Compared to the model with the noninformative prior, the estimates are pulled in slightly towards the prior
+```{r engine='cat',engine.opts=list(file = "putting_model.stan", lang = "stan")}
+data {
+  int J;
+  int n[J];
+  real x[J];
+  int y[J];
+}
+parameters {
+  real alpha;
+  real beta;
+}
+transformed parameters {
+  real theta[J];
+  for (j in 1:J)
+    theta[j] <- inv_logit(alpha + beta * x[j]);
+}
+model {
+  y ~ binomial(n, theta);
+}
+generated quantities {
+  real LD50;
+  LD50 <- -alpha/beta;
+}
+```
+
+```{r warning=FALSE, message=FALSE, results='hide'}
+fit1 <- stan("bioassay_model.stan")
+```
+```{r}
+print(fit1, pars = c("alpha", "beta", "LD50"))
+
+## Post-processing
+
+sims1 <- extract(fit1)
+plot(sims1$alpha, sims1$beta)
+hist(sims1$LD50)
+```

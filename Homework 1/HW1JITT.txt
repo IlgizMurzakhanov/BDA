@@ -1,0 +1,4 @@
+1. The coefficient of income gives us the log odds ratio of a one category increase in income so we have .66 +- .06*2 for the estimate and SE of the log odds ratio 
+95% CI is roughly two standard errors on either side so [.66-.24, .66+.24]
+
+2. False, if likelihood has much greater variance than the prior then posterior could have greater variance than prior.
