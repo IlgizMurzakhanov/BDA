@@ -1,0 +1,58 @@
+---
+title: "HW6"
+output: pdf_document
+---
+
+(a)
+Assuming a noninformative uniform prior on the parameters in question ($\alpha, \beta$), the posterior is $\propto p(y_i|\alpha, \beta, n_i, x_i) \propto [\text{logit}^{-1} (\alpha + \beta x_i)]^{y_i} [1 - \text{logit}^{-1} (\alpha + \beta x_i)]^{n_i - y_i}$. For the purposes of HMC, we'll use the log posterior, which is given by $y_i ((\alpha + \beta x_i) - \log (1 + e^{\alpha + \beta x_i})) - (n_i - y_i) \log(1 + e^{\alpha + \beta x_i}) = y_i (\alpha + \beta x_i) - n_i \log(1 + e^{\alpha + \beta x_i})$. In code:
+```{r}
+inv.logit <- function(x){
+  exp(x)/(1+exp(x))
+}
+
+log_p_th <- function(th, y, n, x){
+  alpha <- th[1]
+  beta <- th[2]
+  log_prior <- 0
+  log_likelihood <- sum(log((inv.logit(alpha + beta * x) ^ y) 
+                            * (1 - inv.logit(alpha + beta * x)) ^ (n-y)))
+  return (log_likelihood + log_prior)
+}
+```
+
+We can now get the gradients $\frac{d \log p(\alpha, \beta | y_i, n_i, x_i)}{d \alpha} = y_i - n_i \frac{e^{\alpha + \beta x_i}}{1 + e^{\alpha + \beta x_i}}$ and $\frac{d \log p(\alpha, \beta | y_i, n_i, x_i)}{d \beta} = y_i x_i - n_i x_i \frac{e^{\alpha + \beta x_i}}{1 + e^{\alpha + \beta x_i}} = x_i (y_i  - n_i \frac{e^{\alpha + \beta x_i}}{1 + e^{\alpha + \beta x_i}}$. In code:
+```{r}
+gradient_th <- function(th, y, n, x){
+  alpha <- th[1]
+  beta <- th[2]
+  d_alpha <- sum(y - n * inv.logit(alpha + beta * x))
+  d_beta <- sum(x * (y - n * inv.logit(alpha + beta * x)))
+  return (c(d_alpha, d_beta))
+}
+```
+
+Now we want to check the gradient numerically:
+```{r}
+gradient_th_numerical <- function(th, y, n, x){
+  d <- length(th)
+  e <- .0001
+  diff <- rep(NA, d)
+  for (k in 1:d){
+    th_hi <- th
+    th_lo <- th
+    th_hi[k] <- th[k] + e
+    th_lo[k] <- th[k] - e
+    diff[k] <- (log_p_th(th_hi, y, n, x) - log_p_th(th_lo, y, n, x))/(2 * e)
+  }
+  return (diff)
+}
+
+setwd("~/Documents/BDA/Homework 6")
+bioassay <- read.table("bioassay_data.txt", header=TRUE)
+x <- bioassay$x
+y <- bioassay$y
+n <- bioassay$n
+gradient_th(c(1, 1), y, n, x)
+gradient_th_numerical(c(1, 1), y, n, x)
+```
+

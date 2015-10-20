@@ -119,4 +119,4 @@ X <- as.matrix(cbind(x1, x2, x3))
 y <- rpois(50, exp(X %*% true_beta))
 met_samps <- metropolis(init_beta, 1000, y, X)
 plot(met_samps)
-
+fit1 <- stan("metropolis.stan")
