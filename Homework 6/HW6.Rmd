@@ -56,3 +56,67 @@ gradient_th(c(1, 1), y, n, x)
 gradient_th_numerical(c(1, 1), y, n, x)
 ```
 
+HMC Code:
+```{r}
+library(rstan)
+library(arm)
+hmc_iteration <- function(th, y, n, x, epsilon, L, M) {
+  M_inv <- 1/M
+  d <- length(th)
+  phi <- rnorm (d, 0, sqrt(M))
+  th_old <- th
+  log_p_old <- log_p_th (th, y, n, x) - 0.5 * sum(M_inv * phi ^ 2)
+  phi <- phi + 0.5 * epsilon * gradient_th(th, y, n, x)
+  for (l in 1:L) {
+    th <- th + epsilon * M_inv * phi
+    phi <- phi + (if (l == L) 0.5 else 1) * epsilon * gradient_th(th, y, n, x)
+  }
+  phi <- -phi
+  log_p_star <- log_p_th(th, y, n, x) - 0.5 * sum(M_inv * phi ^ 2)
+  r <- exp(log_p_star - log_p_old)
+  if(is.nan(r)) r <- 0
+  p_jump <- min(r, 1)
+  th_new <- if (runif(1) < p_jump) th else th_old
+  return (list (th = th_new, p_jump = p_jump))
+}
+
+hmc_run <- function(starting_values, iter, epsilon_0, L_0, M) {
+  chains <- nrow(starting_values)
+  d <- ncol (starting_values)
+  sims <- array(NA, c(iter, chains, d), dimnames = list(NULL, NULL, colnames(starting_values)))
+  warmup <- 0.5 * iter
+  p_jump <- array(NA, c(iter, chains))
+  for (j in 1:chains) {
+    th <- starting_values[j,]
+    for (t in 1:iter) {
+      epsilon <- runif(1, 0, 2 * epsilon_0)
+      L <- ceiling(2 * L_0 * runif(1))
+      temp <- hmc_iteration(th, y, n, x, epsilon, L, M)
+      p_jump[t, j] <- temp$p_jump
+      sims[t, j, ] <- temp$th
+      th <- temp$th
+    }
+  }
+  monitor (sims, warmup)
+  cat("Avg acceptance probs:", fround(colMeans(p_jump[(warmup + 1):iter,]), 2), "\n")
+  #return (list(sims = sims, p_jump = p_jump))
+}
+```
+
+We know from fitting the model in Homework 2 that the standard deviation of alpha is around 1.5 and the standard deviation around beta is around 5.5. So we can try to make M roughly scale with the inverse of the covariance matrix by setting 
+```{r}
+mass_vector <- c(1 / (1.5 ^ 2), 1 / (5.5 ^ 2))
+```
+
+Then we set the other parameter values to the recommended values and run the sampler. After playing around with the parameters it seems like you need 250 iterations to get 100 effective samples and $\epsilon$ = .5 and L = 2 to get the optimal acceptance probabilities:
+```{r}
+parameter_names <- c("alpha", "beta")
+d <- length(parameter_names)
+chains <- 4
+starts <- array(NA, c(chains, d), dimnames = list(NULL, parameter_names))
+for (j in 1:chains) {
+  starts[j,] <- rnorm(d, 0, 15)
+}
+
+hmc_run(starting_values = starts, iter = 250, epsilon_0 = .5, L_0 = 2, M = mass_vector)
+```

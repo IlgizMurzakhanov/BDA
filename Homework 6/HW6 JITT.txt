@@ -1,0 +1,1 @@
+1. EM is a special case of variational Bayes, where the distribution of the parameters is restricted to be a point mass.
