@@ -32,7 +32,7 @@ gradient_th <- function(th, y, n, x){
 ```
 
 Now we want to check the gradient numerically:
-```{r}
+```{r, comment=NA}
 gradient_th_numerical <- function(th, y, n, x){
   d <- length(th)
   e <- .0001
@@ -57,9 +57,12 @@ gradient_th_numerical(c(1, 1), y, n, x)
 ```
 
 HMC Code:
-```{r}
+```{r, message=FALSE, warning=FALSE}
 library(rstan)
-library(arm)
+fround <- function (x, digits) {
+  format (round (x, digits), nsmall=digits)
+}
+
 hmc_iteration <- function(th, y, n, x, epsilon, L, M) {
   M_inv <- 1/M
   d <- length(th)
@@ -97,19 +100,18 @@ hmc_run <- function(starting_values, iter, epsilon_0, L_0, M) {
       th <- temp$th
     }
   }
-  monitor (sims, warmup)
-  cat("Avg acceptance probs:", fround(colMeans(p_jump[(warmup + 1):iter,]), 2), "\n")
-  #return (list(sims = sims, p_jump = p_jump))
+  print(cat("Avg acceptance probs:", fround(colMeans(p_jump[(warmup + 1):iter,]), 2), "\n"))
+  return(monitor(sims, warmup, print=FALSE))
 }
 ```
 
-We know from fitting the model in Homework 2 that the standard deviation of alpha is around 1.5 and the standard deviation around beta is around 5.5. So we can try to make M roughly scale with the inverse of the covariance matrix by setting 
+We know from fitting the model in Homework 2 that the standard deviation of alpha is around 1 and the standard deviation around beta is around 5. We want to make M roughly scale with the inverse of the covariance matrix. However, making it equal to the covariance matrix turned out to be too conservative. Instead I set it to 1/3 * covariance matrix: 
 ```{r}
-mass_vector <- c(1 / (1.5 ^ 2), 1 / (5.5 ^ 2))
+mass_vector <- c(1 / (3 ^ 2), 1 / (15 ^ 2))
 ```
 
-Then we set the other parameter values to the recommended values and run the sampler. After playing around with the parameters it seems like you need 250 iterations to get 100 effective samples and $\epsilon$ = .5 and L = 2 to get the optimal acceptance probabilities:
-```{r}
+Then we set the other parameter values to the recommended values and run the sampler. After playing around with the parameters it seems like you need 250 iterations to get 100 effective samples and $\epsilon$ = .2 and L = 5 to get the optimal acceptance probabilities:
+```{r, comment=NA, warning=FALSE}
 parameter_names <- c("alpha", "beta")
 d <- length(parameter_names)
 chains <- 4
@@ -118,5 +120,11 @@ for (j in 1:chains) {
   starts[j,] <- rnorm(d, 0, 15)
 }
 
-hmc_run(starting_values = starts, iter = 250, epsilon_0 = .5, L_0 = 2, M = mass_vector)
+M1 <- hmc_run(starting_values = starts, iter = 250, epsilon_0 = .2, L_0 = 5, M = mass_vector)
+```
+
+```{r xtable, results="asis", warning=FALSE}
+library(xtable)
+m1table <- xtable(as.data.frame(M1))
+print(m1table, type="latex")
 ```

@@ -1,3 +1,4 @@
+library(rstan)
 setwd("~/Documents/BDA/Homework 6")
 bioassay <- read.table("bioassay_data.txt", header=TRUE)
 x <- bioassay$x
@@ -6,6 +7,10 @@ n <- bioassay$n
 
 inv.logit <- function(x){
   exp(x)/(1+exp(x))
+}
+
+fround <- function (x, digits) {
+  format (round (x, digits), nsmall=digits)
 }
 
 log_p_th <- function(th, y, n, x){
@@ -85,7 +90,7 @@ hmc_run <- function(starting_values, iter, epsilon_0, L_0, M) {
   }
   monitor (sims, warmup)
   cat("Avg acceptance probs:", fround(colMeans(p_jump[(warmup + 1):iter,]), 2), "\n")
-  #return (list(sims = sims, p_jump = p_jump))
+  return(monitor(sims, warmup))
 }
 
 parameter_names <- c("alpha", "beta")
@@ -93,6 +98,7 @@ d <- length(parameter_names)
 chains <- 4
 mass_vector <- rep(1/15 ^ 2, d)
 mass_vector <- c(1, 1 / (5.5 ^ 2))
+mass_vector <- c(1 / (3 ^ 2), 1 / (15 ^ 2))
 starts <- array(NA, c(chains, d), dimnames = list(NULL, parameter_names))
 for (j in 1:chains) {
   starts[j,] <- rnorm(d, 0, 15)
