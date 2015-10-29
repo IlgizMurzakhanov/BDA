@@ -3,6 +3,7 @@ data {
   vector[N] ageBin;
   vector[N] gks;
   vector[N] gender;
+  vector[N] sigma_sq;
 }
 transformed data {
   vector[N] mu;
@@ -12,7 +13,6 @@ transformed data {
 parameters {
   real<lower=0> tau_sq;
   real<lower=0> l_sq;
-  real<lower=0> sigma_sq;
 }
 model {
   matrix[N,N] Sigma;
@@ -27,11 +27,11 @@ model {
 
   // diagonal elements
   for (k in 1:N)
-    Sigma[k,k] <- tau_sq + sigma_sq; // + jitter
+    Sigma[k,k] <- tau_sq + sigma_sq[k];
 
   tau_sq ~ cauchy(0,5);
   l_sq ~ cauchy(0,5);
-  sigma_sq ~ cauchy(0,5);
 
   gks ~ multi_normal(mu,Sigma);
 }
+
