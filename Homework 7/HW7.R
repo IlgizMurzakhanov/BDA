@@ -15,7 +15,7 @@ gks_data <- gks - mean(gks)
 sigma_sq <- pp_naes$sigma_sq[1:32]
 gender_data <- as.numeric(pp_naes$gender)[1:32] - 1
 N_data <- length(gks_data)
-fit <- stan(file="gp.stan", data=list(ageBin=ageBin_data, N=N_data, gks=gks_data, gender=gender_data, sigma_sq=sigma_sq))
+fit <- stan(file="gp.stan")
 
 ageBin_sim <- (0:100)/1;
 N_sim <- length(ageBin_sim);
