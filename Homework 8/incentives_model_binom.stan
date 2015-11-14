@@ -20,13 +20,14 @@ parameters {
   real beta_v;
   real beta_b;
   real beta_I;
+  real constant;
   vector[N_J] alpha;
   vector[N_I] pi;
 }
 transformed parameters {
   vector[N_I] XB;
   for (i in 1:N_I)
-    XB[i] <- beta_I * I[i] + beta_b * b[i] + beta_m * m[i] + beta_v * v[i] + beta_f * f[i] + beta_t * t[i];
+    XB[i] <- beta_I * I[i] + beta_b * b[i] + beta_m * m[i] + constant;
 }
 model {
   alpha ~ normal(0, tau_sq);
