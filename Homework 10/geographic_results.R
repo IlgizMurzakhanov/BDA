@@ -16,8 +16,9 @@ N_regions <- nlevels(region)
 region <- as.numeric(region)
 deaths <- nhl$Deaths
 population <- nhl$Population
-rate <- deaths/population * 1e5
+rate <- deaths/population
 V <- rate * (1 - rate) / population * 1e10
+rate <- rate * 1e5
 #rate <- rate - mean(rate)
 N <- length(age)
 
