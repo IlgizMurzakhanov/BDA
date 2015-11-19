@@ -180,7 +180,7 @@ grid(col="gray")
 dev.off()
 
 
-pdf("focus_group_3.pdf", height=6, width=7)
+pdf("focus_group_4.pdf", height=6, width=7)
 par(mar=c(2.5, 3, 3, .2), mgp=c(2,.5,0), tck=-.01)
 plot(range(years_1), c(1, 1.15), xaxt="n", yaxt="n", type="n", bty="l", xaxs="i", xlab="", ylab="Death rate relative to 1999", main="RAW death rates for non-Hispanic whites aged 45-54:\nTrends for women and men")
 lines(years_1, male_raw_death_rate[,2,1]/male_raw_death_rate[1,2,1], col="blue")
@@ -189,5 +189,136 @@ axis(1, seq(1990,2020,5))
 axis(2, seq(1, 1.2, .05))
 text(2011.5, 1.11, "Women", col="red")
 text(2010.5, 1.045, "Men", col="blue")
+grid(col="gray")
+dev.off()
+
+## Simple graph of totals
+
+number_of_deaths <- rep(NA, length(years_1))
+number_of_people <- rep(NA, length(years_1))
+avg_age <- rep(NA, length(years_1))
+avg_age_census <- rep(NA, length(years_1))
+data <- mort_data[[1]]
+death_rate_extrap_1999 <- rep(NA, length(years_1))
+death_rate_extrap_2013 <- rep(NA, length(years_1))
+male <- data[,"Male"]==1
+ok_1999 <- data[,"Year"]==1999 & data[,"Age"] %in% ages_decade[[2]] 
+death_rate_1999 <- (data[ok_1999 & male, "Deaths"] + data[ok_1999 & !male, "Deaths"])/(data[ok_1999 & male, "Population"] + data[ok_1999 & !male, "Population"])
+ok_2013<- data[,"Year"]==2013 & data[,"Age"] %in% ages_decade[[2]] 
+death_rate_2013 <- (data[ok_2013 & male, "Deaths"] + data[ok_2013 & !male, "Deaths"])/(data[ok_2013 & male, "Population"] + data[ok_2013 & !male, "Population"])
+age_adj_rate_flat <- rep(NA, length(years_1))
+age_adj_rate_1999 <- rep(NA, length(years_1))
+age_adj_rate_2013 <- rep(NA, length(years_1))
+  ok <- data[,"Age"] %in% ages_decade[[2]]
+  pop1999 <- data[ok & data[,"Year"]==1999 & male,"Population"] + data[ok & data[,"Year"]==1999 & !male,"Population"]
+  pop2013 <- data[ok & data[,"Year"]==2013 & male,"Population"] + data[ok & data[,"Year"]==2013 & !male,"Population"]
+for (i in 1:length(years_1)){
+  ok <- data[,"Year"]==years_1[i] & data[,"Age"] %in% ages_decade[[2]]
+  number_of_deaths[i] <- sum(data[ok,"Deaths"])
+  number_of_people[i] <- sum(data[ok,"Population"])
+  avg_age[i] <- weighted.mean(ages_decade[[2]], data[ok & male,"Population"] + data[ok & !male,"Population"])
+  avg_age_census[i] <- mean_age_45_54(years_1[i])
+  rates <- (data[ok&male,"Deaths"] + data[ok&!male,"Deaths"])/(data[ok&male,"Population"] + data[ok&!male,"Population"])
+  age_adj_rate_flat[i] <- weighted.mean(rates, rep(1,10))
+  age_adj_rate_1999[i] <- weighted.mean(rates, pop1999)
+  age_adj_rate_2013[i] <- weighted.mean(rates, pop2013)
+}
+for (i in 1:length(years_1)){
+  ok <- data[,"Year"]==years_1[i] & data[,"Age"] %in% ages_decade[[2]]
+  death_rate_extrap_1999[i] <- weighted.mean(death_rate_1999, data[ok & male,"Population"] + data[ok & !male,"Population"])
+  death_rate_extrap_2013[i] <- weighted.mean(death_rate_2013, data[ok & male,"Population"] + data[ok & !male,"Population"])
+}
+
+
+pdf("first_order_bias_a.pdf", height=4, width=5)
+par(mar=c(2.5, 3, 3, .2), mgp=c(2,.5,0), tck=-.01)
+plot(years_1,  number_of_deaths, xaxt="n", type="l", bty="l", xaxs="i", xlab="", ylab="Number of deaths", main="Raw data show a stunning rise and fall\nin mortality among non-Hispanic whites aged 45-54", cex.main=.9)
+axis(1, seq(1990,2020,5))
+grid(col="gray")
+dev.off()
+
+pdf("first_order_bias_b.pdf", height=4, width=5)
+par(mar=c(2.5, 3, 3, .2), mgp=c(2,.5,0), tck=-.01)
+plot(years_1,  number_of_people, xaxt="n", type="l", bty="l", xaxs="i", xlab="", ylab="Number of non-Hispanic whites aged 45-54", main="But the denominator is changing in the same way!", cex.main=.9)
+axis(1, seq(1990,2020,5))
+grid(col="gray")
+dev.off()
+
+pdf("second_order_bias_a.pdf", height=4, width=5)
+par(mar=c(2.5, 3, 3, .2), mgp=c(2,.5,0), tck=-.01)
+plot(years_1,  number_of_deaths/number_of_people, xaxt="n", type="l", bty="l", xaxs="i", xlab="", ylab="Mortality rate among non-Hisp whites 45-54", main="So take the ratio!", cex.main=.9)
+axis(1, seq(1990,2020,5))
+grid(col="gray")
+dev.off()
+
+
+pdf("second_order_bias_b.pdf", height=4, width=5)
+par(mar=c(2.5, 3, 3, .2), mgp=c(2,.5,0), tck=-.01)
+plot(years_1, avg_age, xaxt="n", type="l", bty="l", xaxs="i", xlab="", ylab="Avg age among non-Hisp whites 45-54", main="But the average age in this group is going up!", cex.main=.9)
+axis(1, seq(1990,2020,5))
+grid(col="gray")
+dev.off()
+
+
+pdf("second_order_bias_c.pdf", height=4, width=5)
+par(mar=c(2.5, 3, 3, .2), mgp=c(2,.5,0), tck=-.01)
+plot(years_1, avg_age, xaxt="n", type="l", bty="l", xaxs="i", xlab="", ylab="Avg age among non-Hisp whites 45-54", main="Let's check the average age using a different dataset", cex.main=.9)
+axis(1, seq(1990,2020,5))
+lines(years_1, avg_age_census, col="orange")
+text(2011.7, 49.6, "From\nCDC data", cex=.8)
+text(2007.5, 49.55, "Extrapolation from\n2001 Census", col="orange", cex=.8)
+grid(col="gray")
+dev.off()
+
+
+
+pdf("second_order_bias_d.pdf", height=4, width=5)
+par(mar=c(2.5, 3, 3, .2), mgp=c(2,.5,0), tck=-.01)
+plot(years_1, death_rate_extrap_1999, xaxt="n", type="n", bty="l", xaxs="i", xlab="", ylab="Reconstructed death rate", main="Increase in death rate among 45-54-year-old non-Hisp whites,\n expected just from the changing age composition of this group", cex.main=.8)
+lines(years_1, death_rate_extrap_1999, col="green4")
+axis(1, seq(1990,2020,5))
+grid(col="gray")
+dev.off()
+
+
+
+pdf("second_order_bias_e.pdf", height=4, width=5)
+par(mar=c(2.5, 3, 3, .2), mgp=c(2,.5,0), tck=-.01)
+plot(years_1, number_of_deaths/number_of_people, xaxt="n", type="l", bty="l", xaxs="i", xlab="", ylab="Death rate for 45-54 non-Hisp whites", main="Increase in death rate among 45-54-year-old non-Hisp whites,\n expected just from the changing age composition of this group", cex.main=.8)
+lines(years_1, death_rate_extrap_1999, col="green4")
+axis(1, seq(1990,2020,5))
+text(2002.5, .00404, "Raw death rate", cex=.8)
+text(2009, .00394, "Expected just from\nage shift", col="green4", cex=.8)
+grid(col="gray")
+dev.off()
+
+
+pdf("second_order_bias_f.pdf", height=4, width=5)
+par(mar=c(2.5, 3, 3, .2), mgp=c(2,.5,0), tck=-.01)
+plot(years_1, number_of_deaths/number_of_people, xaxt="n", type="l", bty="l", xaxs="i", xlab="", ylab="Death rate for 45-54 non-Hisp whites", main="Projecting backward from 2013 makes it clear that\nall the underlying change happened between 1999 and 2005", cex.main=.8)
+lines(years_1, death_rate_extrap_2013, col="green4")
+axis(1, seq(1990,2020,5))
+text(2003, .00395, "Raw death rate", cex=.8)
+text(2001.5, .004075, "Expected just from\nage shift", col="green4", cex=.8)
+grid(col="gray")
+dev.off()
+
+pdf("third_order_bias_a.pdf", height=4, width=5)
+par(mar=c(2.5, 3, 3, .2), mgp=c(2,.5,0), tck=-.01)
+plot(years_1, age_adj_rate_flat/age_adj_rate_flat[1], xaxt="n", type="l", bty="l", xaxs="i", xlab="", ylab="Age-adj death rate, relative to 1999", main="Trend in age-adjusted death rate\nfor 45-54-year-old non-Hisp whites", cex.main=.8)
+axis(1, seq(1990,2020,5))
+grid(col="gray")
+dev.off()
+
+
+pdf("third_order_bias_b.pdf", height=4, width=5)
+par(mar=c(2.5, 3, 3, .2), mgp=c(2,.5,0), tck=-.01)
+rng <- range(age_adj_rate_flat/age_adj_rate_flat[1], age_adj_rate_1999/age_adj_rate_1999[1], age_adj_rate_2013/age_adj_rate_2013[1])
+plot(years_1, age_adj_rate_flat/age_adj_rate_flat[1], ylim=rng, xaxt="n", type="l", bty="l", xaxs="i", xlab="", ylab="Age-adj death rate, relative to 1999", main="It doesn't matter too much what age adjustment\nyou use for 45-54-year-old non-Hisp whites", cex.main=.8)
+lines(years_1, age_adj_rate_1999/age_adj_rate_1999[1], lty=2)
+lines(years_1, age_adj_rate_2013/age_adj_rate_2013[1], lty=3)
+text(2003, 1.053, "Using 1999\nage dist", cex=.8)
+text(2004, 1.032, "Using 2013\nage dist", cex=.8)
+axis(1, seq(1990,2020,5))
 grid(col="gray")
 dev.off()
