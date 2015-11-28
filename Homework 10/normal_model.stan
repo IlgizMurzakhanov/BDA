@@ -12,7 +12,7 @@ data {
 }
 parameters {
   real<lower=0> sigma_sq;
-  real<lower=0> constant;
+  real constant;
   real beta_a;
   vector[N_genders] beta_g;
   vector[N_years] beta_y;
@@ -28,5 +28,5 @@ model {
   beta_r ~ normal(0, tau_r);
   beta_a ~ normal(0, 10);
   for(i in 1:N)
-    rate[i] ~ normal(beta_a * age + beta_y[year[i]] + beta_g[gender[i]] + beta_r[region[i]] + constant, sigma_sq + V[i]);
+    rate[i] ~ normal(beta_a * age[i] + beta_y[year[i]] + beta_g[gender[i]] + beta_r[region[i]] + constant, sigma_sq + V[i]);
 }

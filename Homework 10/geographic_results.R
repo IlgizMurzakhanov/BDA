@@ -22,8 +22,6 @@ rate <- rate * 1e5
 #rate <- rate - mean(rate)
 N <- length(age)
 
-fit <- stan("linear_model.stan")
-
 male <- gender=="M"
 female <- gender=="F"
 R1 <- region=="CENS-R1"
@@ -31,10 +29,6 @@ R2 <- region=="CENS-R2"
 R3 <- region=="CENS-R3"
 R4 <- region=="CENS-R4"
 mort_data <- data.frame(age, year, gender, region, deaths, population)
-
-fit <- stan("linear_model.stan")
-
-XB[i] <- beta_a * age[i] + beta_y * year[i] + beta_m * male[i] + beta_f * female[i] + beta_R1 * R1[i] + beta_R2 * R2[i] + beta_R3 * R3[i] + beta_R4 * R4[i] + beta_R1m * R1 * male[i] + beta_R1f * R1[i] * female[i] + beta_R2m * R2[i] * male[i] + beta_R2f * R2[i] * female[i] + beta_R3m * R3[i] * male[i] + beta_R3f * R3[i] * female[i] + beta_R4m * R4[i] * male[i] + beta_R4f * R4[i] * female[i] + constant;
 
 years_1 <- 1999:2013
 ages_decade <- list(35:44, 45:54, 55:64)
@@ -55,7 +49,6 @@ R1_female_avg_death_rate <- array(NA, length(years_1))
 R2_female_avg_death_rate <- array(NA, length(years_1))
 R3_female_avg_death_rate <- array(NA, length(years_1))
 R4_female_avg_death_rate <- array(NA, length(years_1))
-
 
 data <- nhl
 male <- data[,"Gender.Code"]=="M"
@@ -81,6 +74,17 @@ for (i in 1:length(years_1)){
   R3_female_avg_death_rate[i] <- mean(data[ok&R3&!male,"Deaths"]/data[ok&R3&!male,"Population"])
   R4_female_avg_death_rate[i] <- mean(data[ok&R4&!male,"Deaths"]/data[ok&R4&!male,"Population"])
 }
+year <- rep(1999:2013, 8)
+regions <- rep(c(rep("Northeast", 15), rep("Midwest", 15), rep("South", 15), rep("West", 15)), 2)
+gender <- c(rep("M", 60), rep("F", 60))
+death_rate <- c(R1_male_avg_death_rate, R2_male_avg_death_rate, R3_male_avg_death_rate, R4_male_avg_death_rate, R1_female_avg_death_rate, R2_female_avg_death_rate, R3_female_avg_death_rate, R4_female_avg_death_rate)
+norm_death_rate <- c(R1_male_avg_death_rate/R1_male_avg_death_rate[1], R2_male_avg_death_rate/R2_male_avg_death_rate[1], R3_male_avg_death_rate/R3_male_avg_death_rate[1], R4_male_avg_death_rate/R4_male_avg_death_rate[1], R1_female_avg_death_rate/R1_female_avg_death_rate[1], R2_female_avg_death_rate/R2_female_avg_death_rate[1], R3_female_avg_death_rate/R3_female_avg_death_rate[1], R4_female_avg_death_rate/R4_female_avg_death_rate[1])
+
+df <- data.frame(year, regions, gender, death_rate)
+norm_df <- data.frame(year, regions, gender, norm_death_rate)
+ggplot(data = df, aes(x = year, y = death_rate, group = interaction(gender, regions), color = regions, linetype = gender)) + geom_line()
+ggplot(data = norm_df, aes(x = year, y = norm_death_rate, group = interaction(gender, regions), color = regions, linetype = gender)) + geom_line()
+
 
 plot(years_1, avg_death_rate/avg_death_rate[1], xaxt="n", yaxt="n", ylim=range(.65,1.25), type="n", bty="n", xaxs="i", yaxs="i", xlab="", ylab=if (j==1) "Relative death rate" else "", main=paste("Age-adj, ", min(ages_decade[[j]]), "-", max(ages_decade[[j]]), sep=""))
 lines(years_1, R1_avg_death_rate/R1_avg_death_rate[1], col="blue")
