@@ -126,7 +126,6 @@ init_beta <- rcauchy(3, scale = 2.5)
 met_samps3 <- metropolis(init_beta, 1000, y, X)
 data.frame(cbind(met_samps1[, 1], met_samps2[, 1], met_samps3[, 1]))
 plot(met_samps)
-<<<<<<< HEAD
 
 yrange <- range(c(met_samps1[, 1], met_samps2[, 1], met_samps3[, 1]))
 plot(met_samps1[, 1], type="l", ylim=yrange, ylab="samples")

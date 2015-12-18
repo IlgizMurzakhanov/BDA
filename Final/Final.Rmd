@@ -1,0 +1,188 @@
+---
+title: "Final"
+output: pdf_document
+---
+
+1. 
+(a)
+$N_b, N_g$ - number of each type of fish  
+$S_1, S_2$ - size of sample at time 1 and 2    
+$C_b$ - number of blue fish caught (at time 1)  
+$T_1$ - Number of fish tagged (at time 1)  
+$T_2$ - number of tagged fish caught (at time 2)  
+(b) 
+$\text{Beta}(\frac{N_b}{N_g}; 1, 1)$    
+(c)
+$P(N_b, N_g|S_1, S_2, T) \propto \text{Bin}(C_b; S_1, \frac{N_b}{N_g}) \text{Bin}(T_2; S_2, \frac{T_1}{N_b, N_g}) \text{Beta}(\frac{N_b}{N_g}; 1, 1)$
+
+2.
+(a)
+The posterior $p(a, b | x, y) \propto \prod_i (\frac{(b x_i)^{a}}{\Gamma(a)} y_i^{a - 1} e^{-b x_i y_i}) \frac{1}{\sqrt{2 \pi} \log (2) a} e^{-\frac{1}{2 (\log 2)^2} (\log a - \log 5)^2} \frac{1}{\sqrt{2 \pi} \log (10) b} e^{-\frac{1}{2 (\log 10)^2} (\log b - (\log 0.1))^2}$ 
+Therefore the $\log p(a, b | x, y) = \sum_i(a \log (b x_i) - \log(\Gamma(a)) + (a - 1) \log (y_i) - b x_i y_i) - \log(\sqrt{2 \pi} \log(2)) - \log(a) + \frac{1}{2 (\log 2)^2} (\log a - \log 5)^2 - \log(\sqrt{2 \pi} \log(10)) - \log(b) + \frac{1}{2 (\log 10)^2} (\log b - \log 0.1)^2$   
+gradient:  
+$\frac{d \log p(a, b | x, y)}{d a} = \sum_i(\log{\beta x_i} - \Gamma(\alpha) \digamma(\alpha) + \log(y_i)) - \frac{1}{a} + \frac{1}{2 (\log 2)^2} (\frac{2 \log \alpha}{\alpha} + \frac{\log(5)}{\log \alpha})$    
+$\frac{d \log p(a, b | x, y)}{d b} = \sum_i(\frac{a}{b} - x_iy_i) - \frac{1}{b} + \frac{1}{2 (\log 0.1)^2} (\frac{2 \log \beta}{\beta} + \frac{\log(.1)}{\log \beta})$    
+(b)
+```{r}
+setwd("~/Documents/BDA/Final")
+library("foreign")
+library("rstan")
+library("dplyr")
+library("boot")
+library("ggplot2")
+library("tidyr")}
+```
+
+3.
+(a)
+Likelihood function: $P(y| \theta, \sigma^2) = \frac{1}{\sqrt{2 \pi} \sigma} e^{-\frac{1}{2 \sigma^2} (y - \theta)^2}$   
+Posterior: $P(\theta| y, \sigma^2) =  \frac{\frac{1}{\sqrt{2 \pi} \sigma} e^{-\frac{1}{2 \sigma^2} (y - \theta)^2}}{\int_0^1 \frac{1}{\sqrt{2 \pi} \sigma} e^{-\frac{1}{2 \sigma^2} (y - \theta)^2} d \theta}$
+(b)
+(c)
+The mean squared error of the MLE is $(\theta_0)^2 \int_{-\infty}^0 N(y| \theta_0, \sigma^2) dy + (1 - \theta_0)^2 \int_1^{\infty} N(y| \theta_0, \sigma^2) dy + \int_0^1 (y - \theta_0)^2 N(y| \theta_0, \sigma^2) dy$
+The mean squared error of the posterior mean is 
+
+4.
+(a)
+We have a logit-binomial regression model where we try to predict the number of Democratic voters
+$D_{s, m} ~ binomial $(N_{s, m}, p_{s, m})$
+where s indexes state and m indexes marital status (1 if married, 0 if not). D is the number of Democratic voters in that survey category, N is the number of total respondents and p is the percentage of democratic voters.
+Then:
+$p_{s, m} \sim \text{logit}^{-1} (\beta_i + \beta_m x_m + \beta_s X_s + \beta_{s, m} X_s x_m$
+where $x_m$ is a dummy variable for marital status, $X_s$ are dummy variables for state and the corresponding $\beta$s are the regression coefficients
+$\beta_i \sim N(0, \sigma_i)$   
+$\beta_m \sim N(0, \sigma_m)$   
+$\beta_s \sim N(0, \sigma_s)$
+$\beta_{s, m} \sim N(0, \sigma_{s, m})$
+
+$\sigma_i \sim N^T(0, 5)$   
+$\sigma_m \sim N^T(0, 5)$   
+$\sigma_s \sim N^T(0, 5)$
+$\sigma_{s, m} \sim N^T(0, 5)$
+where $N^T$ indicates a truncated normal
+(b)
+```{r}
+data <- read.dta("pew_research_center_june_elect_wknd_data.dta")
+data$heat <- data$heat2
+data$heat[is.na(data$heat2)] <- data$heat4[is.na(data$heat2)]
+levels(data$heat)[3] <- NA
+data$dem <- as.numeric(data$heat) - 1
+data$married <- data$marital == "married"
+state_abbs <- state.abb
+state_abbs <- append(state_abbs, "DC", after = 7)
+data$state_abbs <- data$state
+levels(data$state_abbs) <- state_abbs
+ok <- !is.na(data$dem) & !is.na(data$married) & !is.na(data$state) & data$state != "alaska" & data$state != "hawaii"
+clean_data <- droplevels(subset(data, ok))
+by_state_married <- group_by(clean_data, state, married, state_abbs)
+counts_data <- summarise(by_state_married, count = n(), n_dem = sum(dem), percent = mean(dem)*100)
+n_states <- nlevels(counts_data$state)
+state <- as.numeric(counts_data$state)
+married <- as.numeric(counts_data$married)
+n_dem <- counts_data$n_dem
+n_data <- dim(counts_data)[1]
+count <- counts_data$count
+pct_married <- rep(NA, n_states)
+for(i in 1:n_states){
+  pct_married[i] <- count[state==i & married==1]/(count[state==i & married==1]+count[state==i & married==0])
+}
+```
+
+fit <- stan("Final.stan")
+monitor <- as.data.frame(monitor(fit))
+y_pred <- data.frame(state_abbs = counts_data$state_abbs, married = counts_data$married)
+p_mean <- rep(NA, length(state))
+p_sd <- rep(NA, length(state))
+for(i in 1:length(state)){
+  p_mean[i] <- monitor[paste("p_pred[", i, "]", sep = ""), "mean"]
+  p_sd[i] <- monitor[paste("p_pred[", i, "]", sep = ""), "sd"]
+}
+y_pred$percent <- p_mean
+y_pred$sd <- p_sd
+y_pred$ground_truth <- rep(FALSE, length(y_pred$percent))
+plot_data <- y_pred
+plot_data$sd <- rep(NA, length(plot_data$sd))
+plot_data$percent <- counts_data$percent
+plot_data$ground_truth <- rep(TRUE, length(plot_data$percent))
+plot_data <- rbind(y_pred, plot_data)
+
+p <- ggplot(data=plot_data, aes(x=state_abbs, y=percent, group=interaction(married, ground_truth), color=married, shape=ground_truth, ymax=percent + sd, ymin=percent - sd))
+p + geom_point() +
+  geom_errorbar(width=0.2) +
+  xlab("State") + 
+  ylab("Percent") +
+  ggtitle("") +
+  theme_bw()
+
+results <- read.csv("~/Documents/BDA/Final/2008ElectionResult.csv")
+results$state_abbs <- state_abbs
+ok <- results$state != "Alaska" & results$state != "Hawaii"
+clean_results<- droplevels(subset(results, ok))
+obama_plot <- clean_results[, c("state_abbs", "vote_Obama_pct")]
+obama_plot$sd <- rep(NA, length(obama_plot$state_abbs))
+obama_plot$ground_truth <- rep(TRUE, length(obama_plot$state_abbs))
+pred_mean <- rep(NA, length(obama_plot$state_abbs))
+pred_sd <- rep(NA, length(obama_plot$state_abbs))
+for(i in 1:length(clean_results$state_abbs)){
+  pred_mean[i] <- monitor[paste("obama_pct[", i, "]", sep = ""), "mean"]
+  pred_sd[i] <- monitor[paste("obama_pct[", i, "]", sep = ""), "sd"]
+}
+obama_preds <- data.frame(state_abbs=obama_plot$state_abbs, vote_Obama_pct=pred_mean, sd=pred_sd)
+obama_preds$ground_truth <- rep(FALSE, length(obama_preds$state_abbs))
+obama_plot <- rbind(obama_plot, obama_preds)
+
+p <- ggplot(data=obama_plot, aes(x=state_abbs, y=vote_Obama_pct, group=ground_truth, color=ground_truth, ymax=vote_Obama_pct + sd, ymin=vote_Obama_pct - sd))
+p + geom_point() +
+  geom_errorbar(width=0.2) +
+  xlab("State") + 
+  ylab("Percent") +
+  ggtitle("") +
+  theme_bw()
+
+fit_nostate <- stan("final_nostate.stan")
+monitor_nostate <- as.data.frame(monitor(fit_nostate))
+y_pred <- data.frame(state_abbs = counts_data$state_abbs, married = counts_data$married)
+p_mean <- rep(NA, length(state))
+p_sd <- rep(NA, length(state))
+for(i in 1:length(state)){
+  p_mean[i] <- monitor_nostate[paste("p_pred[", i, "]", sep = ""), "mean"]
+  p_sd[i] <- monitor_nostate[paste("p_pred[", i, "]", sep = ""), "sd"]
+}
+y_pred$percent <- p_mean
+y_pred$sd <- p_sd
+y_pred$ground_truth <- rep(FALSE, length(y_pred$percent))
+plot_data <- y_pred
+plot_data$sd <- rep(NA, length(plot_data$sd))
+plot_data$percent <- counts_data$percent
+plot_data$ground_truth <- rep(TRUE, length(plot_data$percent))
+plot_data <- rbind(y_pred, plot_data)
+
+p <- ggplot(data=plot_data, aes(x=state_abbs, y=percent, group=interaction(married, ground_truth), color=married, shape=ground_truth, ymax=percent + sd, ymin=percent - sd))
+p + geom_point() +
+  geom_errorbar(width=0.2) +
+  xlab("State") + 
+  ylab("Percent") +
+  ggtitle("") +
+  theme_bw()
+
+obama_plot <- clean_results[, c("state_abbs", "vote_Obama_pct")]
+obama_plot$sd <- rep(NA, length(obama_plot$state_abbs))
+obama_plot$ground_truth <- rep(TRUE, length(obama_plot$state_abbs))
+pred_mean <- rep(NA, length(obama_plot$state_abbs))
+pred_sd <- rep(NA, length(obama_plot$state_abbs))
+for(i in 1:length(clean_results$state_abbs)){
+  pred_mean[i] <- monitor_nostate[paste("obama_pct[", i, "]", sep = ""), "mean"]
+  pred_sd[i] <- monitor_nostate[paste("obama_pct[", i, "]", sep = ""), "sd"]
+}
+obama_preds <- data.frame(state_abbs=obama_plot$state_abbs, vote_Obama_pct=pred_mean, sd=pred_sd)
+obama_preds$ground_truth <- rep(FALSE, length(obama_preds$state_abbs))
+obama_plot <- rbind(obama_plot, obama_preds)
+
+p <- ggplot(data=obama_plot, aes(x=state_abbs, y=vote_Obama_pct, group=ground_truth, color=ground_truth, ymax=vote_Obama_pct + sd, ymin=vote_Obama_pct - sd))
+p + geom_point() +
+  geom_errorbar(width=0.2) +
+  xlab("State") + 
+  ylab("Percent") +
+  ggtitle("") +
+  theme_bw()
+```

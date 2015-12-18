@@ -1,0 +1,42 @@
+Codebook
+========
+
+* Subject: A unique numeric identifier associated with each participant in the
+           experiment. These identifiers were assigned full at random after
+           all data had been gathered.
+
+* Condition: The numeric index of the condition to which a participant had
+             been assigned. In the data set, there are five conditions, listed
+             below. In the analysis code, there are also references to
+             Condition 0, which is defined as the union of all of the data rows
+             from all of the five true conditions.
+    * 1 - Absolute Gains
+    * 2 - Relative Gains
+    * 3 - Standard MEL
+    * 4 - Absolute Losses
+    * 5 - Relative Losses
+
+* Question: The positional index of the question being answered by a single
+            participant. Each participant had 25 different questions randomly
+            generated for them.
+
+* G: The absolute difference in monetary value between the larger, later
+     option and the smaller, sooner option. In the notation of the paper,
+     G = X2 - X1.
+
+* R: The relative difference in monetary value between the larger, later
+     option and the smaller, sooner option. In the notation of the paper,
+     R = X2 / X1.
+
+* D: The delay between the earlier and later options. In the notation of the
+     paper, D = T2 - T1.
+
+* X1: The monetary value associated with the smaller, sooner reward.
+
+* T1: The time of receipt associated with the smaller, sooner reward.
+
+* X2: The monetary value associated with the larger, later reward.
+
+* T2: The time of receipt associated with the larger, later reward.
+
+* LaterOptionChosen: Was the larger, later option chosen? 1 if so; 0 if not.
