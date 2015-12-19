@@ -30,19 +30,31 @@ log_p_th <- function(th, x, y){
   return (log_likelihood + log_a_prior + log_b_prior)
 }
 
+log_p_th2 <- function(th, x, y){
+  a <- th[1]
+  b <- th[2]
+  log_a_prior <- - log(sqrt(2 * pi) * log(2)) - log(a) - (1/(2 * log(2)^2) * (log(a) - log(5))^2) 
+  log_b_prior <- - log(sqrt(2 * pi) * log(10)) - log(b) - (1/(2 * log(10)^2) * (log(b) - log(0.1))^2)
+  log_lik <- rep(NA, length(x))
+  for(i in 1:n)
+    log_lik[i] <- a * log(b * x[i]) - log(gamma(a)) + (a - 1) * log(y[i]) - b * x[i] * y[i]
+  log_likelihood <- sum(log_lik)
+  return (log_likelihood + log_a_prior + log_b_prior)
+}
+
 gradient_th <- function(th, x, y){
   a <- th[1]
   b <- th[2]
   d_a_lik <- rep(NA, n)
   d_b_lik <- rep(NA, n)
   for(i in 1:n){
-    d_a_lik[i] <- log(b * x[i]) - gamma(a) * digamma(a) + log(y[i])
+    d_a_lik[i] <- log(b * x[i]) - digamma(a) + log(y[i])
     d_b_lik[i] <- (a / b) - (y[i] * x[i])
   }
-  d_a_prior <-  1/(2 * log(2) ^ 2) * ((2 * log(a) / a) + (log(5) / log(a))) - (1 / a)
-  d_a <- sum(d_a_lik) + d_a_prior
-  d_b_prior <- 1/(2 * log(10) ^ 2) * ((2 * log(b) / b) + (log(.1) / log(b))) - (1 / b)
-  d_b <- sum(d_b_lik) + d_b_prior
+  d_a_prior <-  1/(2 * log(2) ^ 2) * (2 * log(a/5) / a) + (1 / a)
+  d_a <- sum(d_a_lik) - d_a_prior
+  d_b_prior <- 1/(2 * log(10) ^ 2) * (2 * log(b/0.1) / b) + (1 / b)
+  d_b <- sum(d_b_lik) - d_b_prior
   return (c(d_a, d_b))
 }
 
@@ -60,6 +72,20 @@ gradient_th_numerical <- function(th, x, y){
   return (diff)
 }
 
+gradient_th_numerical2 <- function(th, x, y){
+  d <- length(th)
+  e <- .0001
+  diff <- rep(NA, d)
+  for (k in 1:d){
+    th_hi <- th
+    th_lo <- th
+    th_hi[k] <- th[k] + e
+    th_lo[k] <- th[k] - e
+    diff[k] <- (log_p_th2(th_hi, x, y) - log_p_th2(th_lo, x, y))/(2 * e)
+  }
+  return (diff)
+}
+
 fround <- function (x, digits) {
   format (round (x, digits), nsmall=digits)
 }
@@ -70,10 +96,10 @@ hmc_iteration <- function(th, x, y, epsilon, L, M) {
   phi <- rnorm (d, 0, sqrt(M))
   th_old <- th
   log_p_old <- log_p_th (th, x, y) - 0.5 * sum(M_inv * phi ^ 2)
-  phi <- phi + 0.5 * epsilon * gradient_th_numerical(th, x, y)
+  phi <- phi + 0.5 * epsilon * gradient_th(th, x, y)
   for (l in 1:L) {
     th <- th + epsilon * M_inv * phi
-    phi <- phi + (if (l == L) 0.5 else 1) * epsilon * gradient_th_numerical(th, x, y)
+    phi <- phi + (if (l == L) 0.5 else 1) * epsilon * gradient_th(th, x, y)
   }
   phi <- -phi
   log_p_star <- log_p_th(th, x, y) - 0.5 * sum(M_inv * phi ^ 2)
@@ -118,27 +144,31 @@ for (j in 1:chains) {
   starts[j,] <- c(rlnorm(1, meanlog = log(5), sdlog = log(2)), rlnorm(1, meanlog = log(0.1), sdlog = log(10)))
 }
 
-M1 <- hmc_run(starting_values = starts, iter = 250, epsilon_0 = .1, L_0 = 10, M = mass_vector)
+M1 <- hmc_run(starting_values = starts, iter = 250, epsilon_0 = .05, L_0 = 20, M = mass_vector)
 
 #3
-sigma = 10
+sigma = 30
 sim_mse <- function(sigma, n) {
   theta_0 <- runif(n)
   mse_mle <- rep(NA, n)
   mse_post <- rep(NA, n)
+  theta <- seq(from = 0, to = 1, length.out = 1000)
   for(i in 1:n) {
     y <- rnorm(1, mean = theta_0[i], sd = sigma)
     mle <- max(min(y, 1), 0)
-    theta <- seq(from = 0, to = 1, length.out = 1000)
-    post_mean <- mean(theta * dnorm(y, mean = theta, sd = sigma))
+    norm <- sum(dnorm(y, mean = theta, sd = sigma))
+    post_mean <- sum(theta * (dnorm(y, mean = theta, sd = sigma)/norm))
     mse_mle[i] <- (mle - theta_0[i])^2
     mse_post[i] <- (post_mean - theta_0[i])^2
   }
   list(mse_mle = mse_mle, mse_post = mse_post)
 }
-sims <- sim_mse(sigma, 100)
-mean(sims$mse_mle)
-mean(sims$mse_post)
+count <- 0
+for(i in 1:20){
+  sims <- sim_mse(sigma, 100)
+  if(mean(sims$mse_post) > mean(sims$mse_mle))
+    count <- count + 1
+}
 
 #4
 data <- read.dta("pew_research_center_june_elect_wknd_data.dta")

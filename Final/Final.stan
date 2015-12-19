@@ -3,7 +3,7 @@ data {
   int<lower=0> n_states;
   int<lower=0> state[n_data];
   int<lower=0> count[n_data];
-  int<lower=0,upper=1> married[n_data];
+  int<lower=0, upper=1> married[n_data];
   int<lower=0> n_dem[n_data];
   real<lower=0> pct_married[n_states];
 }
